@@ -8,3 +8,5 @@ numpy
 openai
 gradio
 python-dotenv
+rank_bm25
+cohere

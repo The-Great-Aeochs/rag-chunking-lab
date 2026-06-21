@@ -56,9 +56,7 @@ def chunk(pages, chunk_size=800, chunk_overlap=80):
 
     # Only re-split sections longer than this. Short-to-medium sections
     # (Abstract, Conclusions, Background) stay whole — that's the point
-    # of section-aware chunking. Trade-off: the embedder truncates past
-    # 256 tokens (~1200 chars), so larger chunks lose tail content in
-    # embedding space, but the full text is still available for generation.
+    # of section-aware chunking. 
     resplit_threshold = max(chunk_size * 3, 2500)
 
     results = []

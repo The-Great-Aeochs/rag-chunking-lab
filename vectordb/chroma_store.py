@@ -13,7 +13,7 @@ shines at 100K+ vectors where brute-force becomes too slow.
 """
 
 import chromadb
-
+#hnswlib is the library that chroma uses for the index
 
 class ChromaStore:
     def __init__(self, collection_name="chunks", persist_dir=None):

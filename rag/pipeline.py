@@ -61,7 +61,7 @@ def build_pipeline(chunker_name="Section-wise", store_name="Qdrant"):
     chunks = chunk_fn(pages, **kwargs)
     texts = [c["text"] for c in chunks]
     embeddings = embed_texts(texts)
-    dim = embeddings.shape[1]
+    dim = embeddings.shape[1] #(1, 768) -> 768
     store = STORES[store_name](dim)
     store.add(chunks, embeddings)
     return store, chunks

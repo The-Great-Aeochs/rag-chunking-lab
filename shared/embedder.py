@@ -7,7 +7,7 @@ _model = None
 def get_model():
     global _model
     if _model is None:
-        _model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+        _model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2") #256 embedding, but this one is 768 embedding
     return _model
 
 
