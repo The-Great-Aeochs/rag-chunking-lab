@@ -7,6 +7,8 @@ than bi-encoders (embedding models) because they see the full interaction
 between query and document, but they're too slow to run on the entire corpus.
 
 Pattern: retrieve broadly (top 20) -> rerank to find the best 5.
+
+to get the api key, go to https://dashboard.cohere.com/ and create a new key.
 """
 
 import os

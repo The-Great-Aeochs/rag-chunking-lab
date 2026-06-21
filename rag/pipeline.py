@@ -25,6 +25,7 @@ from chunking import recursive, character, section_wise, semantic
 from vectordb.faiss_store import FaissStore
 from vectordb.qdrant_store import QdrantStore
 from vectordb.chroma_store import ChromaStore
+from retrieval.hybrid import HybridSearch
 
 PAPERS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "papers")
 
@@ -64,12 +65,12 @@ def build_pipeline(chunker_name="Section-wise", store_name="Qdrant"):
     dim = embeddings.shape[1] #(1, 768) -> 768
     store = STORES[store_name](dim)
     store.add(chunks, embeddings)
-    return store, chunks
+    hybrid = HybridSearch(chunks, store, embed_query)
+    return store, chunks, hybrid
 
 
-def ask(store, question, k=5):
-    qe = embed_query(question)
-    results = store.search(qe, k=k)
+def ask(hybrid, question, k=5):
+    results = hybrid.search(question, k=k)
     context = "\n\n---\n\n".join(r["text"] for r in results)
     user_msg = USER_MSG.format(context=context, question=question)
 
@@ -119,9 +120,9 @@ def main():
     args = parser.parse_args()
 
     print(f"Building pipeline: chunker={args.chunker}, store={args.store}\n")
-    store, chunks = build_pipeline(args.chunker, args.store)
+    store, chunks, hybrid = build_pipeline(args.chunker, args.store)
     print(f"Indexed {len(chunks)} chunks\n")
-    ask(store, args.question, k=args.k)
+    ask(hybrid, args.question, k=args.k)
 
 
 if __name__ == "__main__":

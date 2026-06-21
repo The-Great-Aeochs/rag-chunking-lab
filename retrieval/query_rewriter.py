@@ -84,6 +84,17 @@ def rag_fusion_search(question, store, embed_query_fn, k=5, n_variants=4):
         results = store.search(qe, k=k)
         ranked_lists.append(results)
 
+    # --- Parallel version (searches are independent, so they can run concurrently) ---
+    # from concurrent.futures import ThreadPoolExecutor
+    #
+    # def search_one(q):
+    #     qe = embed_query_fn(q)
+    #     return store.search(qe, k=k)
+    #
+    # with ThreadPoolExecutor(max_workers=len(all_queries)) as pool:
+    #     ranked_lists = list(pool.map(search_one, all_queries))
+    # ---
+
     merged = reciprocal_rank_fusion(*ranked_lists, k=60)
     return merged[:k], variants
 

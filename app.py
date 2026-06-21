@@ -26,6 +26,10 @@ from vectordb.faiss_store import FaissStore
 from vectordb.qdrant_store import QdrantStore
 from vectordb.chroma_store import ChromaStore
 from eval.metrics import recall_at_k, reciprocal_rank
+from retrieval.bm25_search import BM25Search
+from retrieval.hybrid import HybridSearch
+from retrieval.query_rewriter import rag_fusion_search, hyde_search
+from retrieval.reranker import retrieve_and_rerank, rerank
 
 PAPERS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "papers")
 GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "eval", "golden_set.json")
@@ -43,6 +47,9 @@ def _next_collection():
     global _store_counter
     _store_counter += 1
     return f"col_{_store_counter}"
+
+STORE_NAMES = ["FAISS", "Qdrant", "Chroma"]
+
 
 def _build_stores(dim):
     return {
@@ -154,12 +161,9 @@ def run_page_visualizer(paper_name, page_number, chunk_size, chunk_overlap):
     pdf_path = os.path.join(PAPERS_DIR, paper_name)
     overlap = int(chunk_overlap)
 
-    chunker_configs = [
-        ("Recursive", recursive.chunk, {"chunk_size": int(chunk_size), "chunk_overlap": overlap}),
-        ("Character", character.chunk, {"chunk_size": int(chunk_size), "chunk_overlap": overlap}),
-        ("Section-wise", section_wise.chunk, {"chunk_size": int(chunk_size), "chunk_overlap": overlap}),
-        ("Semantic", semantic.chunk, {"chunk_size": int(chunk_size), "chunk_overlap": overlap}),
-    ]
+    chunker_configs = []
+    for name, (fn, _) in CHUNKERS.items():
+        chunker_configs.append((name, fn, {"chunk_size": int(chunk_size), "chunk_overlap": overlap}))
 
     gallery_items = []
     for name, fn, kwargs in chunker_configs:
@@ -261,7 +265,7 @@ def run_chunking_comparison(chunk_size, chunk_overlap):
     summary += header + body
 
     summary += "\n\n**Key observations:**\n"
-    summary += "- **Character** splitter produces oversized chunks → silently truncated by the embedder's 256-token window\n"
+    summary += "- **Character** splitter produces oversized chunks → silently truncated by the embedder's 384-token window\n"
     summary += "- **Semantic** is slowest (embeds every sentence group during chunking)\n"
     summary += "- **Section-wise** preserves paper structure in metadata\n"
 
@@ -390,10 +394,159 @@ def run_evaluation(chunk_size, chunk_overlap):
     return result
 
 
-# ── Tab 6: RAG Q&A ──
+# ── Tab 6: Advanced Retrieval Comparison ──
+
+RETRIEVAL_STRATEGIES = [
+    "Dense (baseline)",
+    "BM25 (sparse)",
+    "Hybrid (Dense+BM25)",
+    "RAG Fusion",
+    "HyDE",
+    "Reranker (Cohere)",
+    "Hybrid + Reranker",
+]
 
 
-def run_rag(question, chunker_name, store_name, k):
+def _run_strategy(name, query, store, chunks, k=5):
+    """Run a single retrieval strategy. Returns (results, extra_info)."""
+    if name == "Dense (baseline)":
+        qe = embed_query(query)
+        return store.search(qe, k=k), None
+
+    if name == "BM25 (sparse)":
+        bm25 = BM25Search(chunks)
+        return bm25.search(query, k=k), None
+
+    if name == "Hybrid (Dense+BM25)":
+        hybrid = HybridSearch(chunks, store, embed_query)
+        return hybrid.search(query, k=k), None
+
+    if name == "RAG Fusion":
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            return [], "OPENAI_API_KEY not set"
+        results, variants = rag_fusion_search(query, store, embed_query, k=k)
+        return results, f"Generated queries: {variants}"
+
+    if name == "HyDE":
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            return [], "OPENAI_API_KEY not set"
+        results, hypo_doc = hyde_search(query, store, embed_query, k=k)
+        return results, f"Hypothetical doc: {hypo_doc[:300]}..."
+
+    if name == "Reranker (Cohere)":
+        api_key = os.environ.get("COHERE_API_KEY")
+        if not api_key:
+            return [], "COHERE_API_KEY not set"
+        return retrieve_and_rerank(query, store, embed_query, retrieve_k=20, final_k=k), None
+
+    if name == "Hybrid + Reranker":
+        cohere_key = os.environ.get("COHERE_API_KEY")
+        if not cohere_key:
+            return [], "COHERE_API_KEY not set"
+        hybrid = HybridSearch(chunks, store, embed_query)
+        candidates = hybrid.search(query, k=20, dense_k=20, sparse_k=20)
+        return rerank(query, candidates, top_n=k), None
+
+    return [], f"Unknown strategy: {name}"
+
+
+def run_advanced_retrieval(query, strategies_selected):
+    if not query.strip():
+        return "Please enter a query."
+
+    pages = get_pages()
+    chunks = section_wise.chunk(pages, chunk_size=800, chunk_overlap=80)
+    texts = [c["text"] for c in chunks]
+    embeddings = embed_texts(texts)
+    dim = embeddings.shape[1]
+
+    store = QdrantStore(collection_name=_next_collection(), dimension=dim)
+    store.add(chunks, embeddings)
+
+    golden = get_golden()
+
+    embed_query("warmup")
+
+    result_md = f"### Advanced Retrieval Comparison\n\n"
+    result_md += f"Query: *\"{query}\"* | Chunker: **Section-wise** | {len(chunks)} chunks\n\n"
+
+    table_header = "| Strategy | Recall@5 | MRR | Latency | Top Result |\n"
+    table_header += "|----------|----------|-----|---------|------------|\n"
+    table_rows = ""
+
+    detail_md = ""
+
+    for name in strategies_selected:
+        t0 = time.perf_counter()
+        try:
+            results, extra = _run_strategy(name, query, store, chunks, k=5)
+        except Exception as e:
+            table_rows += f"| {name} | - | - | - | Error: {str(e)[:50]} |\n"
+            continue
+        latency = (time.perf_counter() - t0) * 1000
+
+        recalls, mrrs = [], []
+        for item in golden:
+            try:
+                g_results, _ = _run_strategy(name, item["question"], store, chunks, k=5)
+            except Exception:
+                g_results = []
+            recalls.append(recall_at_k(g_results, item["evidence"], k=5))
+            mrrs.append(reciprocal_rank(g_results, item["evidence"], k=5))
+
+        avg_recall = np.mean(recalls) if recalls else 0
+        avg_mrr = np.mean(mrrs) if mrrs else 0
+
+        top_preview = ""
+        if results:
+            src = results[0]["metadata"].get("source", "").split("/")[-1]
+            sec = results[0]["metadata"].get("section", "")
+            top_preview = f"{src}"
+            if sec:
+                top_preview += f" - {sec}"
+
+        table_rows += (
+            f"| {name} | {avg_recall:.0%} | {avg_mrr:.3f} | "
+            f"{latency:.0f}ms | {top_preview} |\n"
+        )
+
+        score_labels = {
+            "Dense (baseline)": "cosine",
+            "BM25 (sparse)": "BM25",
+            "Hybrid (Dense+BM25)": "RRF",
+            "RAG Fusion": "RRF",
+            "HyDE": "cosine",
+            "Reranker (Cohere)": "relevance",
+            "Hybrid + Reranker": "relevance",
+        }
+        score_label = score_labels.get(name, "score")
+
+        detail_md += f"\n#### {name}\n\n"
+        if extra:
+            detail_md += f"*{extra}*\n\n"
+        for i, r in enumerate(results[:3]):
+            source = r["metadata"].get("source", "").split("/")[-1]
+            section = r["metadata"].get("section", "")
+            score = r.get("score", 0)
+            preview = r["text"][:150].replace("\n", " ")
+            label = source
+            if section:
+                label += f" - {section}"
+            detail_md += f"**{i+1}.** ({score_label}: {score:.4f} | {label})\n> {preview}...\n\n"
+
+    result_md += table_header + table_rows
+    result_md += "\n**Recall@5** = Did we find the answer in top 5? | **MRR** = How high did it rank?\n"
+    result_md += detail_md
+
+    return result_md
+
+
+# ── Tab 7: RAG Q&A ──
+
+
+def run_rag(question, chunker_name, store_name, retrieval_strategy, k):
     if not question.strip():
         return "Please enter a question.", ""
 
@@ -412,11 +565,30 @@ def run_rag(question, chunker_name, store_name, k):
     store = store_map[store_name]()
     store.add(chunks, embeddings)
 
-    qe = embed_query(question)
-    hits = store.search(qe, k=int(k))
+    embed_query("warmup")
+    k = int(k)
+    t0 = time.perf_counter()
+    try:
+        hits, extra = _run_strategy(retrieval_strategy, question, store, chunks, k=k)
+    except Exception as e:
+        hits, extra = [], f"Strategy error: {e}"
+    retrieval_time = (time.perf_counter() - t0) * 1000
 
     retrieval_md = f"### Retrieved {len(hits)} chunks\n\n"
-    retrieval_md += f"Chunker: **{chunker_name}** | Store: **{store_name}** | Indexed: {len(chunks)} chunks\n\n"
+    retrieval_md += f"Chunker: **{chunker_name}** | Store: **{store_name}** | Strategy: **{retrieval_strategy}** | Indexed: {len(chunks)} chunks | Retrieval: {retrieval_time:.0f}ms\n\n"
+    if extra:
+        retrieval_md += f"*{extra}*\n\n"
+
+    score_labels = {
+        "Dense (baseline)": "cosine",
+        "BM25 (sparse)": "BM25",
+        "Hybrid (Dense+BM25)": "RRF",
+        "RAG Fusion": "RRF",
+        "HyDE": "cosine",
+        "Reranker (Cohere)": "relevance",
+        "Hybrid + Reranker": "relevance",
+    }
+    score_label = score_labels.get(retrieval_strategy, "score")
 
     context_parts = []
     for i, h in enumerate(hits):
@@ -429,7 +601,7 @@ def run_rag(question, chunker_name, store_name, k):
         if section:
             label += f" § {section}"
 
-        retrieval_md += f"**{i+1}.** (score: {score:.4f} | {label})\n> {preview[:250]}...\n\n"
+        retrieval_md += f"**{i+1}.** ({score_label}: {score:.4f} | {label})\n> {preview[:250]}...\n\n"
         context_parts.append(h["text"])
 
     context = "\n\n---\n\n".join(context_parts)
@@ -556,6 +728,29 @@ def build_app():
             eval_out = gr.Markdown()
             eval_btn.click(run_evaluation, [eval_size, eval_overlap], [eval_out])
 
+        with gr.Tab("Advanced Retrieval"):
+            gr.Markdown(
+                "Compare retrieval strategies side by side. Uses **Section-wise** chunker + **Qdrant** as fixed infrastructure.\n\n"
+                "**Dense** = embedding similarity | **BM25** = keyword matching | **Hybrid** = both combined via RRF\n\n"
+                "**RAG Fusion** = LLM generates query variants, merges results | **HyDE** = LLM generates hypothetical answer, embeds that\n\n"
+                "**Reranker** = cross-encoder rescores top-20 candidates | **Hybrid + Reranker** = best of both worlds"
+            )
+            adv_query = gr.Textbox(
+                value="What is multi-head attention and how does it work?",
+                label="Query",
+                lines=2,
+            )
+            adv_strategies = gr.CheckboxGroup(
+                choices=RETRIEVAL_STRATEGIES,
+                value=["Dense (baseline)", "BM25 (sparse)", "Hybrid (Dense+BM25)"],
+                label="Strategies to compare",
+            )
+            adv_btn = gr.Button("Compare Strategies", variant="primary")
+            gr.Markdown("*Strategies that call LLMs (RAG Fusion, HyDE) or Cohere (Reranker) are slower. "
+                        "Evaluation runs each strategy against 20 golden questions — expect 1-2 min per LLM-based strategy.*")
+            adv_out = gr.Markdown()
+            adv_btn.click(run_advanced_retrieval, [adv_query, adv_strategies], [adv_out])
+
         with gr.Tab("RAG Q&A"):
             gr.Markdown("End-to-end RAG: chunk → embed → retrieve → generate. Pick your combo and ask.")
             with gr.Row():
@@ -565,9 +760,14 @@ def build_app():
                     label="Chunker",
                 )
                 rag_store = gr.Dropdown(
-                    choices=["FAISS", "Qdrant", "Chroma"],
+                    choices=STORE_NAMES,
                     value="Qdrant",
                     label="Vector Store",
+                )
+                rag_strategy = gr.Dropdown(
+                    choices=RETRIEVAL_STRATEGIES,
+                    value="Dense (baseline)",
+                    label="Retrieval Strategy",
                 )
                 rag_k = gr.Slider(1, 10, value=5, step=1, label="Top-K")
             rag_question = gr.Textbox(
@@ -579,7 +779,7 @@ def build_app():
             with gr.Row():
                 rag_retrieval = gr.Markdown(label="Retrieved Chunks")
                 rag_prompt = gr.Markdown(label="LLM Prompt & Answer")
-            rag_btn.click(run_rag, [rag_question, rag_chunker, rag_store, rag_k], [rag_retrieval, rag_prompt])
+            rag_btn.click(run_rag, [rag_question, rag_chunker, rag_store, rag_strategy, rag_k], [rag_retrieval, rag_prompt])
 
     return app
 
