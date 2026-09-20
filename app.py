@@ -58,8 +58,56 @@ def _build_stores(dim):
         "Chroma": ChromaStore(collection_name=_next_collection()),
     }
 
-CHUNK_COLORS_HTML = ["#dbeafe", "#fde68a", "#bbf7d0", "#fbcfe8", "#ddd6fe", "#fed7aa"]
-CHUNK_COLORS_RGB = [(219, 234, 254), (253, 230, 138), (187, 247, 208), (251, 207, 232), (221, 214, 254), (254, 215, 170)]
+CHUNK_COLORS_HTML = ["#f9ddcf", "#f7e9bd", "#d9ead7", "#f2dce4", "#dce8e5", "#e7e1ee"]
+CHUNK_COLORS_RGB = [tuple(bytes.fromhex(color[1:])) for color in CHUNK_COLORS_HTML]
+
+APP_THEME = gr.themes.Soft(
+    primary_hue=gr.themes.colors.orange,
+    secondary_hue=gr.themes.colors.green,
+    neutral_hue=gr.themes.colors.stone,
+).set(
+    body_background_fill="#fff9f7",
+    body_background_fill_dark="#fff9f7",
+    body_text_color="#293630",
+    body_text_color_dark="#293630",
+    body_text_color_subdued="#64716a",
+    body_text_color_subdued_dark="#64716a",
+    background_fill_primary="#fff9f7",
+    background_fill_primary_dark="#fff9f7",
+    background_fill_secondary="#ffffff",
+    background_fill_secondary_dark="#ffffff",
+    block_background_fill="#ffffff",
+    block_background_fill_dark="#ffffff",
+    panel_background_fill="#ffffff",
+    panel_background_fill_dark="#ffffff",
+    input_background_fill="#ffffff",
+    input_background_fill_dark="#ffffff",
+    block_label_background_fill="#fdeae4",
+    block_label_background_fill_dark="#fdeae4",
+    block_label_text_color="#854b3c",
+    block_label_text_color_dark="#854b3c",
+    block_info_text_color="#854b3c",
+    block_info_text_color_dark="#854b3c",
+    border_color_primary="#e8dcd7",
+    border_color_primary_dark="#e8dcd7",
+    block_border_color="#e8dcd7",
+    block_border_color_dark="#e8dcd7",
+    input_border_color="#ddcec8",
+    input_border_color_dark="#ddcec8",
+    color_accent="#c2654e",
+    color_accent_soft="#fdeae4",
+    color_accent_soft_dark="#fdeae4",
+    slider_color="#c2654e",
+    slider_color_dark="#c2654e",
+    button_primary_background_fill="#bd604a",
+    button_primary_background_fill_dark="#bd604a",
+    button_primary_background_fill_hover="#a94f3c",
+    button_primary_background_fill_hover_dark="#a94f3c",
+    button_primary_border_color="#bd604a",
+    button_primary_border_color_dark="#bd604a",
+    button_primary_text_color="#ffffff",
+    button_primary_text_color_dark="#ffffff",
+)
 
 _pages_cache = None
 _golden_cache = None
@@ -786,4 +834,4 @@ def build_app():
 
 if __name__ == "__main__":
     app = build_app()
-    app.launch(theme=gr.themes.Soft())
+    app.launch(theme=APP_THEME, css='[data-testid="block-info"] { color: #854b3c !important; }')
