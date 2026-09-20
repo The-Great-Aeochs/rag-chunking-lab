@@ -2,47 +2,41 @@
 Character Text Splitter
 
 Splits only on a single separator (default: paragraph break).
-Merges small pieces up toward chunk_size, but ships oversized
-chunks as-is when a paragraph exceeds the limit.
+Merges small pieces up toward chunk_size. Falls back to fixed-width
+character slices when a piece exceeds the limit.
 """
 
 
 def chunk(pages, chunk_size=800, chunk_overlap=80, separator="\n\n"):
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be positive")
+    if chunk_overlap < 0:
+        raise ValueError("chunk_overlap cannot be negative")
+    if chunk_overlap >= chunk_size:
+        chunk_overlap = chunk_size // 2
+
+    raw_limit = chunk_size - chunk_overlap
     results = []
     for page in pages:
         text = page["page_content"]
-        pieces = text.split(separator)
-
+        raw_chunks = []
         current = ""
-        prev_tail = ""
-        for piece in pieces:
-            candidate = piece if not current else current + separator + piece
-            if len(candidate) <= chunk_size:
-                current = candidate
-            else:
-                if current:
-                    results.append({
-                        "text": current.strip(),
-                        "metadata": {**page["metadata"], "chunker": "character"},
-                    })
-                    prev_tail = current[-chunk_overlap:] if chunk_overlap > 0 else ""
-                if len(piece) > chunk_size:
-                    results.append({
-                        "text": (prev_tail + piece).strip(),
-                        "metadata": {
-                            **page["metadata"],
-                            "chunker": "character",
-                            "oversized": True,
-                        },
-                    })
-                    prev_tail = piece[-chunk_overlap:] if chunk_overlap > 0 else ""
-                    current = ""
-                else:
-                    current = prev_tail + piece
-                    prev_tail = ""
-        if current.strip():
+        for i, piece in enumerate(text.split(separator)):
+            segment = (separator if i else "") + piece
+            if current and len(current) + len(segment) > raw_limit:
+                raw_chunks.append(current)
+                current = ""
+            while len(segment) > raw_limit:
+                raw_chunks.append(segment[:raw_limit])
+                segment = segment[raw_limit:]
+            current = segment
+        if current:
+            raw_chunks.append(current)
+
+        for i, raw in enumerate(raw_chunks):
+            prefix = raw_chunks[i - 1][-chunk_overlap:] if i and chunk_overlap else ""
             results.append({
-                "text": current.strip(),
+                "text": (prefix + raw).strip(),
                 "metadata": {**page["metadata"], "chunker": "character"},
             })
     return [r for r in results if len(r["text"]) >= 20]

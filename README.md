@@ -43,7 +43,7 @@ papers/           Demo PDFs
 | Method | How it splits | Strength | Weakness |
 |--------|--------------|----------|----------|
 | Recursive | Paragraph → line → space → char fallback | Consistent sizes | No semantic awareness |
-| Character | Single separator only | Simple | Oversized chunks, silent truncation |
+| Character | Single separator, then fixed-width fallback | Simple, bounded chunks | Fallback can cut through words |
 | Section-wise | Regex header detection | Preserves paper structure | Pattern-dependent |
 | Semantic | Embedding similarity drops | Topic-aligned boundaries | Slow (embeds during chunking) |
 

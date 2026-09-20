@@ -313,7 +313,7 @@ def run_chunking_comparison(chunk_size, chunk_overlap):
     summary += header + body
 
     summary += "\n\n**Key observations:**\n"
-    summary += "- **Character** splitter produces oversized chunks → silently truncated by the embedder's 384-token window\n"
+    summary += "- **Character** uses a single separator, then fixed character slices for long blocks; slices can cut through words\n"
     summary += "- **Semantic** is slowest (embeds every sentence group during chunking)\n"
     summary += "- **Section-wise** preserves paper structure in metadata\n"
 
