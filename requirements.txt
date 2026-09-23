@@ -6,6 +6,8 @@ qdrant-client
 chromadb
 numpy
 openai
+transformers>=4.37
+torch
 gradio
 python-dotenv
 rank_bm25

@@ -27,6 +27,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 
 from shared.loader import load_all_pdfs
 from shared.embedder import embed_texts, embed_query
+from shared.generator import configuration_error
 from chunking import section_wise
 from vectordb.qdrant_store import QdrantStore
 from eval.metrics import recall_at_k, reciprocal_rank
@@ -94,12 +95,12 @@ def main():
     hybrid = HybridSearch(chunks, store, embed_query)
     strategies["Hybrid (Dense+BM25)"] = lambda q: hybrid.search(q, k=5)
 
-    # 4. RAG Fusion (requires OpenAI)
-    if os.environ.get("OPENAI_API_KEY"):
+    # 4. RAG Fusion (requires the configured generation provider)
+    if configuration_error() is None:
         strategies["RAG Fusion"] = lambda q: rag_fusion_search(q, store, embed_query, k=5)[0]
 
-    # 5. HyDE (requires OpenAI)
-    if os.environ.get("OPENAI_API_KEY"):
+    # 5. HyDE (requires the configured generation provider)
+    if configuration_error() is None:
         strategies["HyDE"] = lambda q: hyde_search(q, store, embed_query, k=5)[0]
 
     # 6. Reranker (requires Cohere)

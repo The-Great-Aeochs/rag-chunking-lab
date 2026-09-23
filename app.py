@@ -20,6 +20,7 @@ from PIL import Image, ImageDraw
 
 from shared.loader import load_all_pdfs
 from shared.embedder import embed_texts, embed_query
+from shared.generator import configuration_error, generate_chat, model_name, provider_name
 
 from chunking import recursive, character, section_wise, semantic
 from vectordb.faiss_store import FaissStore
@@ -470,16 +471,16 @@ def _run_strategy(name, query, store, chunks, k=5):
         return hybrid.search(query, k=k), None
 
     if name == "RAG Fusion":
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            return [], "OPENAI_API_KEY not set"
+        error = configuration_error()
+        if error:
+            return [], error
         results, variants = rag_fusion_search(query, store, embed_query, k=k)
         return results, f"Generated queries: {variants}"
 
     if name == "HyDE":
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            return [], "OPENAI_API_KEY not set"
+        error = configuration_error()
+        if error:
+            return [], error
         results, hypo_doc = hyde_search(query, store, embed_query, k=k)
         return results, f"Hypothetical doc: {hypo_doc[:300]}..."
 
@@ -670,24 +671,13 @@ def run_rag(question, chunker_name, store_name, retrieval_strategy, k):
     prompt_md += "\n```\n"
 
     try:
-        import openai
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if api_key:
-            client = openai.OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg},
-                ],
-                temperature=0,
-            )
-            answer = response.choices[0].message.content
-            prompt_md += f"\n### LLM Answer\n\n{answer}\n"
-        else:
-            prompt_md += "\n*Set `OPENAI_API_KEY` in `.env` to enable LLM generation.*\n"
-    except ImportError:
-        prompt_md += "\n*Install `openai` package to enable LLM generation.*\n"
+        answer = generate_chat([
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_msg},
+        ])
+        prompt_md += f"\n### LLM Answer\n\n*{provider_name()} · {model_name()}*\n\n{answer}\n"
+    except (RuntimeError, ValueError) as exc:
+        prompt_md += f"\n*Generation unavailable: {exc}*\n"
     except Exception as e:
         prompt_md += f"\n*LLM error: {e}*\n"
 

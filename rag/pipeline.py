@@ -21,6 +21,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 
 from shared.loader import load_all_pdfs
 from shared.embedder import embed_texts, embed_query
+from shared.generator import generate_chat, model_name, provider_name
 from chunking import recursive, character, section_wise, semantic
 from vectordb.faiss_store import FaissStore
 from vectordb.qdrant_store import QdrantStore
@@ -86,27 +87,16 @@ def ask(hybrid, question, k=5):
     if len(user_msg) > 500:
         print(f"  ... ({len(user_msg) - 500} more chars)")
 
-    print("\n[To generate an answer, pass this prompt to any LLM.]")
-    print("[Set OPENAI_API_KEY or use Ollama to enable generation.]\n")
-
     try:
-        import openai
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if api_key:
-            client = openai.OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": SYSTEM_MSG},
-                    {"role": "user", "content": user_msg},
-                ],
-                temperature=0,
-            )
-            answer = response.choices[0].message.content
-            print(f"Answer: {answer}")
-            return answer
-    except ImportError:
-        pass
+        answer = generate_chat([
+            {"role": "system", "content": SYSTEM_MSG},
+            {"role": "user", "content": user_msg},
+        ])
+        print(f"\nGenerator: {provider_name()} / {model_name()}")
+        print(f"Answer: {answer}")
+        return answer
+    except (RuntimeError, ValueError) as exc:
+        print(f"\n[Generation unavailable: {exc}]")
 
     return None
 

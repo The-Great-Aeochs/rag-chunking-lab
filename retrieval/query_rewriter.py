@@ -9,23 +9,13 @@ HyDE:       Generate a hypothetical answer, embed that instead of the
             space to real chunks than a short question is.
 """
 
-import os
-import openai
-
-
-def _get_client():
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY not set")
-    return openai.OpenAI(api_key=api_key)
+from shared.generator import generate_chat
 
 
 def generate_query_variants(question, n=4):
     """Generate n alternative phrasings of the question using an LLM."""
-    client = _get_client()
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{
+    generated = generate_chat(
+        [{
             "role": "user",
             "content": (
                 f"Generate {n} different search queries that could help answer "
@@ -36,9 +26,10 @@ def generate_query_variants(question, n=4):
             ),
         }],
         temperature=0.7,
+        max_new_tokens=256,
     )
     variants = [
-        line.strip() for line in response.choices[0].message.content.strip().split("\n")
+        line.strip() for line in generated.strip().split("\n")
         if line.strip()
     ]
     return variants[:n]
@@ -101,10 +92,8 @@ def rag_fusion_search(question, store, embed_query_fn, k=5, n_variants=4):
 
 def generate_hypothetical_document(question, chunk_size=800):
     """Generate a hypothetical answer passage for HyDE."""
-    client = _get_client()
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{
+    generated = generate_chat(
+        [{
             "role": "user",
             "content": (
                 f"Write a detailed passage (~{chunk_size} characters) that "
@@ -115,8 +104,9 @@ def generate_hypothetical_document(question, chunk_size=800):
             ),
         }],
         temperature=0,
+        max_new_tokens=512,
     )
-    return response.choices[0].message.content.strip()
+    return generated.strip()
 
 
 def hyde_search(question, store, embed_query_fn, k=5, chunk_size=800):
