@@ -16,6 +16,7 @@ import os
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from shared.embedder import embed_texts, cosine_similarity
 
 
@@ -33,7 +34,12 @@ def _group_sentences(sentences, window=3):
     return groups
 
 
-def chunk(pages, chunk_size=800, chunk_overlap=80, similarity_threshold=None):
+def chunk(
+    pages,
+    chunk_size=DEFAULT_CHUNK_SIZE,
+    chunk_overlap=DEFAULT_CHUNK_OVERLAP,
+    similarity_threshold=None,
+):
     full_text = "\n".join(p["page_content"] for p in pages)
     source = pages[0]["metadata"]["source"] if pages else "unknown"
     base_meta = {k: v for k, v in pages[0]["metadata"].items()} if pages else {}

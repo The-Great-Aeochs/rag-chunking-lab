@@ -8,6 +8,8 @@ Re-splits long sections with recursive fallback to fit the embedding window.
 
 import re
 
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
+
 HEADER = re.compile(
     r"^(?:\d+(?:\.\d+)*\.?\s+)?"
     r"(Abstract|Introduction|Related Work|Background|Method(?:s|ology)?|Approach"
@@ -49,7 +51,7 @@ def _recursive_resplit(text, max_chars, overlap):
     return [text[i:i + max_chars] for i in range(0, len(text), max_chars - overlap)]
 
 
-def chunk(pages, chunk_size=800, chunk_overlap=80):
+def chunk(pages, chunk_size=DEFAULT_CHUNK_SIZE, chunk_overlap=DEFAULT_CHUNK_OVERLAP):
     by_source = {}
     for p in pages:
         by_source.setdefault(p["metadata"]["source"], []).append(p["page_content"])
