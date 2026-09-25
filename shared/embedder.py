@@ -7,7 +7,18 @@ _model = None
 def get_model():
     global _model
     if _model is None:
-        _model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2") #256 embedding, but this one is 768 embedding
+        try:
+            import truststore
+
+            truststore.inject_into_ssl()
+        except Exception:
+            pass
+
+        _model = SentenceTransformer(
+            "sentence-transformers/all-mpnet-base-v2",
+            cache_folder=None,
+            local_files_only=False,
+        ) # 768-dimensional embedding model
     return _model
 
 

@@ -15,6 +15,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared.loader import load_all_pdfs
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from chunking import recursive, character, section_wise, semantic
 
 PAPERS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "papers")
@@ -44,10 +45,10 @@ def main():
     print(f"Loaded {len(pages)} pages from {PAPERS_DIR}\n")
 
     chunkers = [
-        ("Recursive (800c)", recursive.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-        ("Character (800c)", character.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-        ("Section-wise (800c)", section_wise.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-        ("Semantic", semantic.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
+        (f"Recursive ({DEFAULT_CHUNK_SIZE}c)", recursive.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+        (f"Character ({DEFAULT_CHUNK_SIZE}c)", character.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+        (f"Section-wise ({DEFAULT_CHUNK_SIZE}c)", section_wise.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+        ("Semantic", semantic.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
     ]
 
     print(f"{'Chunker':<22} {'Chunks':>7} {'Avg':>7} {'Min':>6} {'Max':>6} {'Time':>8}")

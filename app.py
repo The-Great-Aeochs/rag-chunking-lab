@@ -19,6 +19,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from shared.loader import load_all_pdfs
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from shared.embedder import embed_texts, embed_query
 from shared.generator import configuration_error, generate_chat, model_name, provider_name
 
@@ -36,10 +37,10 @@ PAPERS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "papers")
 GOLDEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "eval", "golden_set.json")
 
 CHUNKERS = {
-    "Recursive": (recursive.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-    "Character": (character.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-    "Section-wise": (section_wise.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-    "Semantic": (semantic.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
+    "Recursive": (recursive.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+    "Character": (character.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+    "Section-wise": (section_wise.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+    "Semantic": (semantic.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
 }
 
 _store_counter = 0
@@ -129,7 +130,7 @@ def get_golden():
     return _golden_cache
 
 
-def _apply_chunk_size(chunker_name, chunk_size, chunk_overlap=80):
+def _apply_chunk_size(chunker_name, chunk_size, chunk_overlap=DEFAULT_CHUNK_OVERLAP):
     fn, default_kwargs = CHUNKERS[chunker_name]
     kwargs = {**default_kwargs, "chunk_size": int(chunk_size), "chunk_overlap": int(chunk_overlap)}
     return fn, kwargs
@@ -506,7 +507,7 @@ def run_advanced_retrieval(query, strategies_selected):
         return "Please enter a query."
 
     pages = get_pages()
-    chunks = section_wise.chunk(pages, chunk_size=800, chunk_overlap=80)
+    chunks = section_wise.chunk(pages, chunk_size=DEFAULT_CHUNK_SIZE, chunk_overlap=DEFAULT_CHUNK_OVERLAP)
     texts = [c["text"] for c in chunks]
     embeddings = embed_texts(texts)
     dim = embeddings.shape[1]

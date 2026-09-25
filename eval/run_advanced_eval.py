@@ -26,6 +26,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 from shared.loader import load_all_pdfs
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from shared.embedder import embed_texts, embed_query
 from shared.generator import configuration_error
 from chunking import section_wise
@@ -73,7 +74,11 @@ def main():
     print(f"Pages: {len(pages)} | Golden questions: {len(golden)}")
     print("Chunker: Section-wise | Store: Qdrant\n")
 
-    chunks = section_wise.chunk(pages, chunk_size=800, chunk_overlap=80)
+    chunks = section_wise.chunk(
+        pages,
+        chunk_size=DEFAULT_CHUNK_SIZE,
+        chunk_overlap=DEFAULT_CHUNK_OVERLAP,
+    )
     texts = [c["text"] for c in chunks]
     embeddings = embed_texts(texts)
     dim = embeddings.shape[1]

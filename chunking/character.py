@@ -6,8 +6,15 @@ Merges small pieces up toward chunk_size. Falls back to fixed-width
 character slices when a piece exceeds the limit.
 """
 
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 
-def chunk(pages, chunk_size=800, chunk_overlap=80, separator="\n\n"):
+
+def chunk(
+    pages,
+    chunk_size=DEFAULT_CHUNK_SIZE,
+    chunk_overlap=DEFAULT_CHUNK_OVERLAP,
+    separator="\n\n",
+):
     if chunk_size <= 0:
         raise ValueError("chunk_size must be positive")
     if chunk_overlap < 0:

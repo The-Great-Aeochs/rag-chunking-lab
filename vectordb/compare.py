@@ -17,6 +17,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared.loader import load_all_pdfs
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from shared.embedder import embed_texts, embed_query
 from chunking.recursive import chunk as recursive_chunk
 from vectordb.faiss_store import FaissStore
@@ -36,7 +37,11 @@ QUERIES = [
 
 def main():
     pages = load_all_pdfs(PAPERS_DIR)
-    chunks = recursive_chunk(pages, chunk_size=800, chunk_overlap=80)
+    chunks = recursive_chunk(
+        pages,
+        chunk_size=DEFAULT_CHUNK_SIZE,
+        chunk_overlap=DEFAULT_CHUNK_OVERLAP,
+    )
     print(f"Loaded {len(pages)} pages → {len(chunks)} chunks\n")
 
     print("Embedding chunks...")

@@ -6,6 +6,8 @@ Backs off to smaller separators only when chunks exceed the size limit.
 Always respects chunk_size strictly.
 """
 
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
+
 
 def _split_on(text, separator):
     if not separator:
@@ -53,7 +55,7 @@ def _add_overlap(chunks, overlap):
 SEPARATORS = ["\n\n", "\n", " ", ""]
 
 
-def chunk(pages, chunk_size=800, chunk_overlap=80):
+def chunk(pages, chunk_size=DEFAULT_CHUNK_SIZE, chunk_overlap=DEFAULT_CHUNK_OVERLAP):
     results = []
     for page in pages:
         text = page["page_content"]

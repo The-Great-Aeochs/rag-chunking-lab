@@ -9,6 +9,7 @@ HyDE:       Generate a hypothetical answer, embed that instead of the
             space to real chunks than a short question is.
 """
 
+from shared.constants import DEFAULT_CHUNK_SIZE
 from shared.generator import generate_chat
 
 
@@ -90,7 +91,7 @@ def rag_fusion_search(question, store, embed_query_fn, k=5, n_variants=4):
     return merged[:k], variants
 
 
-def generate_hypothetical_document(question, chunk_size=800):
+def generate_hypothetical_document(question, chunk_size=DEFAULT_CHUNK_SIZE):
     """Generate a hypothetical answer passage for HyDE."""
     generated = generate_chat(
         [{
@@ -109,7 +110,7 @@ def generate_hypothetical_document(question, chunk_size=800):
     return generated.strip()
 
 
-def hyde_search(question, store, embed_query_fn, k=5, chunk_size=800):
+def hyde_search(question, store, embed_query_fn, k=5, chunk_size=DEFAULT_CHUNK_SIZE):
     """HyDE: search using a hypothetical document embedding.
 
     1. Generate a hypothetical answer passage

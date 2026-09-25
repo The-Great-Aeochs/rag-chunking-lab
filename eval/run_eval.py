@@ -16,6 +16,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared.loader import load_all_pdfs
+from shared.constants import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from shared.embedder import embed_texts, embed_query
 from chunking import recursive, character, section_wise, semantic
 from vectordb.faiss_store import FaissStore
@@ -35,10 +36,10 @@ def main():
     print(f"Pages: {len(pages)} | Golden questions: {len(golden)}\n")
 
     chunkers = {
-        "Recursive": (recursive.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-        "Character": (character.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-        "Section-wise": (section_wise.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
-        "Semantic": (semantic.chunk, {"chunk_size": 800, "chunk_overlap": 80}),
+        "Recursive": (recursive.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+        "Character": (character.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+        "Section-wise": (section_wise.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
+        "Semantic": (semantic.chunk, {"chunk_size": DEFAULT_CHUNK_SIZE, "chunk_overlap": DEFAULT_CHUNK_OVERLAP}),
     }
 
     store_builders = {
