@@ -2,15 +2,10 @@
 Qdrant Vector Store
 
 Real vector database: persistence, metadata filtering, payload indexing.
-Uses in-memory mode by default (no Docker needed for demo).
-Pass url="http://localhost:6333" for persistent Docker mode.
-
-Indexing: HNSW (Hierarchical Navigable Small World) — approximate nearest
-neighbor search using a multi-layer graph. Each vector is a node; edges
-connect nearby vectors, with long-range shortcuts in upper layers for fast
-traversal. Searches in O(log n). Trade-off: uses more memory than flat
-indexes and recall is approximate (~99%+ with default settings, not 100%).
-Distance metric: Cosine similarity.
+Uses local in-memory mode by default (no Docker needed for demo). Qdrant local
+mode performs exact search, so HNSW parameters do not affect this default lab.
+Pass url="http://localhost:6333" to use a Qdrant server, where collections use
+HNSW for approximate nearest-neighbor search. Distance metric: cosine.
 """
 
 from qdrant_client import QdrantClient

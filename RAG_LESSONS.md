@@ -243,7 +243,7 @@ LLM Answer (gpt-4o):
 
 **What happened:** FAISS, Qdrant, and Chroma all return nearly identical recall@k and MRR scores on our dataset. The differences are in indexing latency and API ergonomics, not retrieval quality.
 
-**Why it matters:** Teams spend weeks evaluating vector databases when the real leverage is in chunking strategy and embedding model choice. At small scale (<100K documents), brute-force exact search (FAISS IndexFlatIP) is fast enough and gives perfect recall. Approximate algorithms (HNSW in Qdrant/Chroma) only matter at scale.
+**Why it matters:** Teams spend weeks evaluating vector databases when the real leverage is in chunking strategy and embedding model choice. At small scale (<100K documents), brute-force exact search is often fast enough. In this lab, FAISS IndexFlatIP and Qdrant's default `:memory:` local mode both perform exact search; Chroma uses HNSW. A Qdrant server uses HNSW, but that is not what the zero-setup local demo benchmarks. Approximate indexes only become meaningful when the corpus is large enough to expose a recall/latency tradeoff.
 
 **Production lesson:**
 - Pick your vector DB based on operational needs (hosted vs. self-managed, filtering, multi-tenancy), not retrieval benchmarks

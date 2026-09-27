@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 
 from shared import generator
+from retrieval import query_rewriter
 
 
 class GeneratorConfigurationTests(unittest.TestCase):
@@ -25,6 +26,12 @@ class GeneratorConfigurationTests(unittest.TestCase):
     def test_huggingface_does_not_require_an_api_key(self):
         with patch.dict(os.environ, {"LLM_PROVIDER": "huggingface"}, clear=True):
             self.assertIsNone(generator.configuration_error())
+
+    @patch("retrieval.query_rewriter.generate_chat", return_value="  focused retrieval query  ")
+    def test_plain_query_rewrite_returns_one_clean_query(self, generate_chat):
+        rewritten = query_rewriter.rewrite_query("Could you politely explain this?")
+        self.assertEqual(rewritten, "focused retrieval query")
+        generate_chat.assert_called_once()
 
 
 if __name__ == "__main__":

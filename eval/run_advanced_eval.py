@@ -3,6 +3,7 @@ Advanced Retrieval Evaluation
 
 Compares retrieval strategies against the baseline:
   - Baseline: Dense search (embed query -> vector search)
+  - Query Rewrite: Rewrite once, then dense search
   - RAG Fusion: Multi-query + Reciprocal Rank Fusion
   - HyDE: Hypothetical Document Embedding
   - Hybrid: Dense + BM25 with RRF
@@ -33,7 +34,7 @@ from vectordb.qdrant_store import QdrantStore
 from eval.metrics import recall_at_k, reciprocal_rank
 from retrieval.bm25_search import BM25Search
 from retrieval.hybrid import HybridSearch
-from retrieval.query_rewriter import rag_fusion_search, hyde_search
+from retrieval.query_rewriter import hyde_search, query_rewrite_search, rag_fusion_search
 from retrieval.reranker import retrieve_and_rerank
 
 PAPERS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "papers")
@@ -95,19 +96,23 @@ def main():
     hybrid = HybridSearch(chunks, store, embed_query)
     strategies["Hybrid (Dense+BM25)"] = lambda q: hybrid.search(q, k=5)
 
-    # 4. RAG Fusion (requires the configured generation provider)
+    # 4. Plain query rewrite (requires the configured generation provider)
+    if configuration_error() is None:
+        strategies["Query Rewrite"] = lambda q: query_rewrite_search(q, store, embed_query, k=5)[0]
+
+    # 5. RAG Fusion (requires the configured generation provider)
     if configuration_error() is None:
         strategies["RAG Fusion"] = lambda q: rag_fusion_search(q, store, embed_query, k=5)[0]
 
-    # 5. HyDE (requires the configured generation provider)
+    # 6. HyDE (requires the configured generation provider)
     if configuration_error() is None:
         strategies["HyDE"] = lambda q: hyde_search(q, store, embed_query, k=5)[0]
 
-    # 6. Reranker (requires Cohere)
+    # 7. Reranker (requires Cohere)
     if os.environ.get("COHERE_API_KEY"):
-        strategies["Reranker (Cohere)"] = lambda q: retrieve_and_rerank(q, store, embed_query, retrieve_k=20, final_k=5)
+        strategies["Dense + Reranker"] = lambda q: retrieve_and_rerank(q, store, embed_query, retrieve_k=20, final_k=5)
 
-    # 7. Hybrid + Reranker (requires both)
+    # 8. Hybrid + Reranker (requires Cohere)
     if os.environ.get("COHERE_API_KEY"):
         from retrieval.reranker import rerank
         def hybrid_rerank(q):

@@ -12,6 +12,30 @@ HyDE:       Generate a hypothetical answer, embed that instead of the
 from shared.generator import generate_chat
 
 
+def rewrite_query(question):
+    """Turn a conversational question into one focused retrieval query."""
+    return generate_chat(
+        [{
+            "role": "user",
+            "content": (
+                "Rewrite the question as one concise search query for retrieving "
+                "evidence from technical papers. Preserve names, numbers, error "
+                "codes, and other exact terms. Return only the rewritten query.\n\n"
+                f"Question: {question}"
+            ),
+        }],
+        temperature=0,
+        max_new_tokens=96,
+    ).strip()
+
+
+def query_rewrite_search(question, store, embed_query_fn, k=5):
+    """Rewrite once, then perform ordinary dense retrieval."""
+    rewritten = rewrite_query(question)
+    results = store.search(embed_query_fn(rewritten), k=k)
+    return results, rewritten
+
+
 def generate_query_variants(question, n=4):
     """Generate n alternative phrasings of the question using an LLM."""
     generated = generate_chat(
